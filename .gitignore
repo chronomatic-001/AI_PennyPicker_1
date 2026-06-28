@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+!.env.example
+!.env.local.example
+dist/
+build/
+coverage/
+out/
+cache/
+broadcast/
+.vscode/
+.DS_Store
+
+# Smart contract dependency libraries (install via 'forge install')
+contracts/lib/

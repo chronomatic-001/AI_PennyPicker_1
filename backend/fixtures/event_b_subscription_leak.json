@@ -1,0 +1,11 @@
+{
+  "event_id": "EVT-B-001",
+  "type": "SUBSCRIPTION_LEAK",
+  "narrative": "Recurring charge from a gaming site the user subscribed to once and forgot",
+  "merchant": "PixelGame Subscription",
+  "monthly_charge_usd": 9.50,
+  "last_used_days_ago": 214,
+  "savings_usd": 9.50,
+  "pre_sweep_action": "CANCEL_SUBSCRIPTION",
+  "detected_at": "2026-06-30T09:02:00Z"
+}

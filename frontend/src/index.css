@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ENH-8 — dual light/dark theme. Source of truth: designUI/design-tokens.css.
+   The --pp-* tokens carry the palette; the legacy names (--bg, --surface, …) and the
+   shadcn bridges alias onto them so every existing utility class and inline var() resolves
+   correctly in BOTH themes. Light is the default; .dark on <html> overrides the --pp-* values. */
+@layer base {
+  :root {
+    /* ── Neutrals ── */
+    --pp-bg: #f5f7fa;
+    --pp-surface: #ffffff;
+    --pp-surface2: #edf1f8;
+    --pp-border: #d3dbe8;
+    --pp-text: #0e1520;
+    --pp-muted: #5e6c82;
+    --pp-subtle: #9ba8ba;
+
+    /* ── Primary — Circle blue / USDC / CTAs (unified) ── */
+    --pp-primary: #0052ff;
+    --pp-primary-bg: rgba(0, 82, 255, 0.07);
+    --pp-primary-border: rgba(0, 82, 255, 0.22);
+    --pp-primary-fg: #ffffff;
+
+    /* ── Success — VERIFIED, MINTED, settled ── */
+    --pp-success: #1a7a3c;
+    --pp-success-bg: rgba(26, 122, 60, 0.07);
+    --pp-success-border: rgba(26, 122, 60, 0.22);
+
+    /* ── Warning — AWAITING_APPROVAL, RUNNING, in-flight ── */
+    --pp-warning: #8a5c00;
+    --pp-warning-bg: rgba(138, 92, 0, 0.07);
+    --pp-warning-border: rgba(138, 92, 0, 0.22);
+
+    /* ── Danger — FAILED, ERROR, Decline ── */
+    --pp-danger: #c41c1c;
+    --pp-danger-bg: rgba(196, 28, 28, 0.07);
+    --pp-danger-border: rgba(196, 28, 28, 0.2);
+    --pp-danger-fg: #ffffff;
+
+    /* ── Accent — mQQQ ONLY, never reused ── */
+    --pp-accent: #7328d6;
+    --pp-accent-bg: rgba(115, 40, 214, 0.07);
+    --pp-accent-border: rgba(115, 40, 214, 0.2);
+
+    /* ── Terminal block — stays dark in BOTH themes ── */
+    --pp-term-bg: #0d1117;
+    --pp-term-border: #21262d;
+    --pp-term-text: #8b9ba8;
+    --pp-term-key: #58a6ff;
+    --pp-term-string: #a5d6ff;
+    --pp-term-number: #79c0ff;
+    --pp-term-dim: #4a5668;
+    --pp-term-ok: #3fb950; /* terminal HTTP 200 status (DESIGN §Terminal; == dark --pp-success) */
+    --pp-term-warn: #d29922; /* terminal HTTP 402 status (DESIGN §Terminal; == dark --pp-warning) */
+
+    /* ── Legacy aliases — existing components reference these names ── */
+    --bg: var(--pp-bg);
+    --surface: var(--pp-surface);
+    --surface-2: var(--pp-surface2);
+    --border: var(--pp-border);
+    --text: var(--pp-text);
+    --text-muted: var(--pp-muted);
+    --primary: var(--pp-primary);
+    --success: var(--pp-success);
+    --warning: var(--pp-warning);
+    --danger: var(--pp-danger);
+    --accent-usdc: var(--pp-primary); /* USDC unified with primary (no separate token) */
+    --accent-mqqq: var(--pp-accent); /* mQQQ purple */
+
+    /* ── shadcn/ui bridge tokens ── */
+    --background: var(--pp-bg);
+    --foreground: var(--pp-text);
+    --card: var(--pp-surface);
+    --card-foreground: var(--pp-text);
+    --popover: var(--pp-surface);
+    --popover-foreground: var(--pp-text);
+    --primary-foreground: var(--pp-primary-fg);
+    --secondary: var(--pp-surface2);
+    --secondary-foreground: var(--pp-text);
+    --muted: var(--pp-surface2);
+    --muted-foreground: var(--pp-muted);
+    --accent: var(--pp-surface2);
+    --accent-foreground: var(--pp-text);
+    --destructive: var(--pp-danger);
+    --destructive-foreground: var(--pp-danger-fg);
+    --input: var(--pp-border);
+    --ring: var(--pp-primary);
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* ── Neutrals ── */
+    --pp-bg: #0b0f14;
+    --pp-surface: #11161d;
+    --pp-surface2: #1a212b;
+    --pp-border: #243040;
+    --pp-text: #e6edf3;
+    --pp-muted: #8b98a9;
+    --pp-subtle: #3d4f62;
+
+    /* ── Primary ── */
+    --pp-primary: #4d8ffb;
+    --pp-primary-bg: rgba(77, 143, 251, 0.1);
+    --pp-primary-border: rgba(77, 143, 251, 0.25);
+    --pp-primary-fg: #ffffff;
+
+    /* ── Success ── */
+    --pp-success: #3fb950;
+    --pp-success-bg: rgba(63, 185, 80, 0.1);
+    --pp-success-border: rgba(63, 185, 80, 0.25);
+
+    /* ── Warning ── */
+    --pp-warning: #d29922;
+    --pp-warning-bg: rgba(210, 153, 34, 0.1);
+    --pp-warning-border: rgba(210, 153, 34, 0.25);
+
+    /* ── Danger ── */
+    --pp-danger: #f85149;
+    --pp-danger-bg: rgba(248, 81, 73, 0.1);
+    --pp-danger-border: rgba(248, 81, 73, 0.2);
+    --pp-danger-fg: #ffffff;
+
+    /* ── Accent — mQQQ only ── */
+    --pp-accent: #a371f7;
+    --pp-accent-bg: rgba(163, 113, 247, 0.1);
+    --pp-accent-border: rgba(163, 113, 247, 0.22);
+
+    /* Terminal tokens are intentionally unchanged in dark mode. */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  /* Smooth color crossfade when toggling themes — does not touch transform/opacity
+     animations (blink, glow, pulse), so those keep running. */
+  div,
+  header,
+  main,
+  aside,
+  section,
+  button,
+  a,
+  span,
+  p,
+  code,
+  pre {
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease;
+  }
+}
+
+/* ── Animations (design-tokens.css) ── */
+@keyframes pp-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.22;
+  }
+}
+
+@keyframes pp-glow-warn {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(210, 153, 34, 0.45);
+  }
+  60% {
+    box-shadow: 0 0 0 8px rgba(210, 153, 34, 0);
+  }
+}
+
+.pp-blink {
+  animation: pp-blink 1.4s ease-in-out infinite;
+}
+.pp-glow {
+  animation: pp-glow-warn 2s ease-out infinite;
+}
