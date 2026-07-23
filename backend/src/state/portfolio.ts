@@ -1,10 +1,10 @@
 import pino from "pino";
-import { createPublicClient, http, formatUnits, type Address } from "viem";
-import { arcTestnet } from "viem/chains";
+import { formatUnits, type Address } from "viem";
 import { config } from "../config.js";
 import { getOrCreateAgentWallet } from "../payments/circle-client.js";
 import { getGatewayBalanceMicro } from "../payments/gateway.js";
 import { getState, updateState } from "./store.js";
+import { publicClient } from "../blockchain.js";
 
 const logger = pino({ name: "portfolio-refresh" });
 
@@ -29,11 +29,6 @@ const pennyVaultAbi = [
 ] as const;
 
 let cachedAgentAddress: Address | null = null;
-
-const publicClient = createPublicClient({
-  chain: arcTestnet,
-  transport: http(config.ARC_RPC_URL),
-});
 
 /**
  * Resolves the Agent Wallet address, caching it to avoid hitting Circle API limits.

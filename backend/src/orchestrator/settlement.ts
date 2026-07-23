@@ -1,17 +1,13 @@
 import pino from "pino";
 import {
-  createPublicClient,
-  createWalletClient,
-  http,
   formatUnits,
   keccak256,
   stringToHex,
   type Address,
 } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { arcTestnet } from "viem/chains";
 import { config } from "../config.js";
 import { getState, updateState } from "../state/store.js";
+import { publicClient, walletClient, account } from "../blockchain.js";
 
 const logger = pino({ name: "settlement-orchestrator" });
 
@@ -54,18 +50,6 @@ const pennyVaultAbi = [
     outputs: [{ type: "uint256" }],
   },
 ] as const;
-
-const publicClient = createPublicClient({
-  chain: arcTestnet,
-  transport: http(config.ARC_RPC_URL),
-});
-
-const account = privateKeyToAccount(config.OPERATOR_PRIVATE_KEY as Address);
-const walletClient = createWalletClient({
-  account,
-  chain: arcTestnet,
-  transport: http(config.ARC_RPC_URL),
-});
 
 /**
  * Executes a single check-and-settle true-up cycle.
@@ -135,7 +119,7 @@ export async function executeSettlementTrueUp(): Promise<void> {
       const hash = await walletClient.writeContract(request);
       logger.info({ txHash: hash }, "submitted recordSettlement transaction, waiting for receipt");
 
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash, pollingInterval: 4_000 });
       logger.info({ txHash: hash, blockNumber: receipt.blockNumber }, "recordSettlement transaction confirmed");
 
       // Refetch stats and update state

@@ -1,18 +1,14 @@
 import pino from "pino";
 import {
-  createPublicClient,
-  createWalletClient,
-  http,
   formatUnits,
   keccak256,
   stringToHex,
   type Address,
 } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { arcTestnet } from "viem/chains";
 import { config } from "../config.js";
 import { updateState } from "../state/store.js";
 import { refreshPortfolio } from "../state/portfolio.js";
+import { publicClient, walletClient, account } from "../blockchain.js";
 
 const logger = pino({ name: "mint-orchestrator" });
 
@@ -53,18 +49,6 @@ const pennyVaultAbi = [
 // In-memory processed paymentRef cache (First-line guard)
 const processedLocalRefs = new Set<string>();
 
-const publicClient = createPublicClient({
-  chain: arcTestnet,
-  transport: http(config.ARC_RPC_URL),
-});
-
-const account = privateKeyToAccount(config.OPERATOR_PRIVATE_KEY as Address);
-const walletClient = createWalletClient({
-  account,
-  chain: arcTestnet,
-  transport: http(config.ARC_RPC_URL),
-});
-
 /**
  * Derives a paymentRef from the Nanopayments confirmation reference.
  */
@@ -74,7 +58,7 @@ export function derivePaymentRef(confirmationRef: string): Address {
 
 /**
  * Execute the on-chain settleAndMint on the PennyVault.
- * Resolves V7 (idempotency).
+ * Resolves V7 (idempotency) and handles RPC rate limits via retry.
  */
 export async function mintForConfirmation(
   beneficiary: string,
@@ -114,39 +98,73 @@ export async function mintForConfirmation(
       processedLocalRefs.add(paymentRef);
       result = await recoverMintDetails(paymentRef);
     } else {
-      // Execute on-chain settleAndMint
-      try {
-        const { request } = await publicClient.simulateContract({
-          address: config.PENNYVAULT_ADDRESS as Address,
-          abi: pennyVaultAbi,
-          functionName: "settleAndMint",
-          args: [beneficiary as Address, amountMicro, paymentRef, memo],
-          account,
-        });
+      // Execute on-chain settleAndMint with inline retries for RPC rate-limits
+      const maxAttempts = 3;
 
-        const hash = await walletClient.writeContract(request);
-        logger.info({ txHash: hash }, "transaction submitted to mint shares, waiting for receipt");
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          // Check if previous attempt succeeded on-chain before trying again
+          if (attempt > 1) {
+            try {
+              const isProcessedOnChain = await publicClient.readContract({
+                address: config.PENNYVAULT_ADDRESS as Address,
+                abi: pennyVaultAbi,
+                functionName: "processedPayments",
+                args: [paymentRef],
+              });
+              if (isProcessedOnChain) {
+                logger.info({ paymentRef, attempt }, "retry loop found paymentRef processed on-chain, performing recovery");
+                processedLocalRefs.add(paymentRef);
+                result = await recoverMintDetails(paymentRef);
+                break;
+              }
+            } catch (checkErr: any) {
+              logger.warn({ error: checkErr.message, attempt }, "failed to check processedPayments during retry loop");
+            }
+          }
 
-        const receipt = await publicClient.waitForTransactionReceipt({ hash });
-        logger.info({ txHash: hash, blockNumber: receipt.blockNumber }, "mint transaction confirmed");
+          const { request } = await publicClient.simulateContract({
+            address: config.PENNYVAULT_ADDRESS as Address,
+            abi: pennyVaultAbi,
+            functionName: "settleAndMint",
+            args: [beneficiary as Address, amountMicro, paymentRef, memo],
+            account,
+          });
 
-        // Add to local cache
-        processedLocalRefs.add(paymentRef);
+          const hash = await walletClient.writeContract(request);
+          logger.info({ txHash: hash, attempt }, "transaction submitted to mint shares, waiting for receipt");
 
-        const expectedShares = (amountMicro * 10n ** 18n) / 500_000_000n;
-        result = {
-          txHash: hash,
-          sharesMinted: formatUnits(expectedShares, 18),
-        };
-      } catch (error: any) {
-        const errMsg = error.message || "";
-        if (errMsg.includes("duplicate payment ref") || errMsg.includes("0x2b380f2d") || errMsg.includes("duplicate")) {
-          logger.info({ paymentRef }, "revert observed due to duplicate payment ref, performing recovery");
+          const receipt = await publicClient.waitForTransactionReceipt({ hash, pollingInterval: 4_000 });
+          logger.info({ txHash: hash, blockNumber: receipt.blockNumber, attempt }, "mint transaction confirmed");
+
           processedLocalRefs.add(paymentRef);
-          result = await recoverMintDetails(paymentRef);
-        } else {
-          logger.error({ error: errMsg }, "settleAndMint failed");
-          throw error;
+
+          const expectedShares = (amountMicro * 10n ** 18n) / 500_000_000n;
+          result = {
+            txHash: hash,
+            sharesMinted: formatUnits(expectedShares, 18),
+          };
+          break;
+        } catch (error: any) {
+          const errMsg = error.message || "";
+
+          if (errMsg.includes("duplicate payment ref") || errMsg.includes("0x2b380f2d") || errMsg.includes("duplicate")) {
+            logger.info({ paymentRef, attempt }, "revert observed due to duplicate payment ref, performing recovery");
+            processedLocalRefs.add(paymentRef);
+            result = await recoverMintDetails(paymentRef);
+            break;
+          }
+
+          logger.warn({ error: errMsg, attempt, maxAttempts }, "settleAndMint attempt failed, checking retry suitability");
+
+          if (attempt < maxAttempts) {
+            const delayMs = attempt * 2000;
+            logger.info({ attempt, delayMs }, "retrying settleAndMint after backoff");
+            await new Promise((res) => setTimeout(res, delayMs));
+          } else {
+            logger.error({ error: errMsg }, "settleAndMint failed after all attempts");
+            throw error;
+          }
         }
       }
     }
@@ -192,6 +210,10 @@ export async function mintForConfirmation(
 
     // Trigger portfolio refresh to update balances
     refreshPortfolio().catch((err) => logger.error({ error: err.message }, "failed to refresh portfolio after mint"));
+  }
+
+  if (!result) {
+    throw new Error(`mintForConfirmation failed to obtain mint result for confirmation ${confirmationRef}`);
   }
 
   return result;

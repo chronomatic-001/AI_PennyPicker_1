@@ -218,7 +218,23 @@ export async function executeSweepForEvent(
     return { status: "MINTED", confirmation_ref, shares_minted: sharesMinted, tx_hash: txHash };
   } catch (err) {
     const message = errMessage(err);
-    const at = getState().sweeps.find((sw) => sw.event_id === event_id)?.state ?? "PAYMENT_REQUESTED";
+    const sweep = getState().sweeps.find((sw) => sw.event_id === event_id);
+    const at = sweep?.state ?? "PAYMENT_REQUESTED";
+
+    if (at === "VERIFIED") {
+      logger.error({ event_id, error: message }, "x402 payment verified but minting encountered error; maintaining VERIFIED state");
+      updateState((s) => {
+        s.feed.push({
+          id: `feed-mint-warning-${event_id}-${Date.now()}`,
+          ts: new Date().toISOString(),
+          kind: "ERROR",
+          event_id,
+          text: `Payment verified (${sweep?.confirmation_ref ?? "confirmed"}), but on-chain share minting experienced RPC delay: ${message}`,
+        });
+      });
+      throw err instanceof AppError ? err : new AppError("MINT_DELAYED", message);
+    }
+
     failSweep(event_id, at, message);
     throw err instanceof AppError ? err : new AppError("SWEEP_FAILED", message);
   }
