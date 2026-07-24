@@ -158,7 +158,7 @@ export async function mintForConfirmation(
           logger.warn({ error: errMsg, attempt, maxAttempts }, "settleAndMint attempt failed, checking retry suitability");
 
           if (attempt < maxAttempts) {
-            const delayMs = attempt * 2000;
+            const delayMs = attempt * 4000;
             logger.info({ attempt, delayMs }, "retrying settleAndMint after backoff");
             await new Promise((res) => setTimeout(res, delayMs));
           } else {

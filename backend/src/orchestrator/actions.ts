@@ -6,6 +6,8 @@ import { getState, updateState } from "../state/store.js";
 import { assertEventApproved } from "./approval-gate.js";
 import { executeRailLeg, AppError } from "./sweep-client.js";
 import { mintForConfirmation } from "./mint.js";
+import { startPortfolioPolling, stopPortfolioPolling } from "../state/portfolio.js";
+import { startSettlementPolling, stopSettlementPolling } from "./settlement.js";
 
 /**
  * The agent's money-touching orchestrator actions. Tools delegate here; these own the sweep state-machine
@@ -168,6 +170,9 @@ export async function executeSweepForEvent(
     });
   });
 
+  stopPortfolioPolling();
+  stopSettlementPolling();
+
   try {
     const { confirmation_ref, views } = await executeRailLeg(amountMicro, memo, beneficiary); // → … → VERIFIED
 
@@ -237,5 +242,8 @@ export async function executeSweepForEvent(
 
     failSweep(event_id, at, message);
     throw err instanceof AppError ? err : new AppError("SWEEP_FAILED", message);
+  } finally {
+    startPortfolioPolling();
+    startSettlementPolling();
   }
 }

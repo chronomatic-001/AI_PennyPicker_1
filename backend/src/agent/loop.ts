@@ -50,6 +50,10 @@ function ensureFailed(event_id: string, message: string): void {
   const now = new Date().toISOString();
   updateState((s) => {
     const sweep = s.sweeps.find((sw) => sw.event_id === event_id);
+    if (sweep && sweep.state === "VERIFIED") {
+      logger.warn({ event_id, message }, "agent finished with sweep in VERIFIED state; maintaining VERIFIED state for pending minting");
+      return;
+    }
     if (sweep && !TERMINAL_STATES.includes(sweep.state)) {
       sweep.failure = { at: sweep.state, message };
       sweep.state = "FAILED";
