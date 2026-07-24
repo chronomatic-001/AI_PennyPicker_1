@@ -12,6 +12,9 @@ broadcast/
 .vscode/
 .DS_Store
 
+# Claude Code local settings & plugins (superpowers, etc.)
+.claude/
+
 # Smart contract dependency libraries (install via 'forge install')
 contracts/lib/
 
