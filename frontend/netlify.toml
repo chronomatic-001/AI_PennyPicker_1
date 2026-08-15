@@ -1,7 +1,5 @@
 # Netlify build config for the AI PennyPicker dashboard (Vite SPA).
-# REQUIRED one-time step: in the Netlify UI set "Base directory" = frontend so Netlify reads
-# THIS file and builds here. VITE_BACKEND_URL (= the Railway backend URL) is set in the Netlify
-# UI — it is environment-specific and must never be committed.
+# Netlify's Base directory must be set to "frontend" so this file is used.
 
 [build]
   command = "npm run build"
@@ -9,6 +7,16 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # Use the same-origin /api proxy below; this overrides the old dashboard value.
+  VITE_BACKEND_URL = "/"
+
+# Keep API requests on the HTTPS Netlify origin and proxy them to the VPS.
+# This rule must come before the SPA catch-all below.
+[[redirects]]
+  from = "/api/*"
+  to = "http://31.97.98.95:3000/api/:splat"
+  status = 200
+  force = true
 
 # Single-page app: serve index.html for any path (defensive for direct loads / refreshes).
 [[redirects]]
